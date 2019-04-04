@@ -9,6 +9,10 @@ class FormsCompilePluginExtension {
 
     String compilerPath = null	//if this is set explicitly, no search will be performed
 
+    String xmlConverterFileName = "frmf2xml.bat"
+
+    String xmlConverterPath = null //if this is set explicitly, no search will be performed
+
     List<CompileableFileType> fileTypes = [
             new CompileableFileType("pll", "plx", ModuleType.LIBRARY),
             new CompileableFileType("mmb", "mmx", ModuleType.MENU),

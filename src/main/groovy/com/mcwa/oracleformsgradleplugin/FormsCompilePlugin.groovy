@@ -6,26 +6,27 @@ import org.gradle.api.Plugin
 import org.gradle.api.Project
 import org.gradle.api.tasks.Copy
 import org.gradle.api.tasks.Delete
+import org.gradle.api.tasks.Exec
 
 import java.util.concurrent.Executors
 import java.util.concurrent.TimeUnit
 
 class FormsCompilePlugin implements Plugin<Project> {
-    def findCompiler(foldersToCheck, compilerFilename){
-        def compiler = null
+    def findExecutable(foldersToCheck, executableFilename){
+        def executable = null
         for(String filename : foldersToCheck){
             //eachFileRecurse seems to be the best way to search for files, but
             // the code is pretty ugly (can't return from inside the closure)
             new File(filename).eachFileRecurse(FileType.FILES) {
-                if(compiler == null && it.getName().equalsIgnoreCase(compilerFilename)){
-                    compiler = it
+                if(executable == null && it.getName().equalsIgnoreCase(executableFilename)){
+                    executable = it
                 }
             }
-            if(compiler != null){
-                return compiler
+            if(executable != null){
+                return executable
             }
         }
-        return compiler
+        return executable
     }
 
     def getSchemaForFilename(String path){
@@ -66,6 +67,18 @@ class FormsCompilePlugin implements Plugin<Project> {
     void apply(Project project){
         def extension = project.extensions.create('oracleForms', FormsCompilePluginExtension)
 
+        project.task('build'){
+            group 'Forms Compile (12c)'
+            description 'Runs all tasks necessary for a full build'
+            dependsOn 'copySourceForBuild', 'compileForms', 'copyExecutablesToOutput'
+        }
+
+        project.task('generateXml'){
+            group 'Forms Compile (12c)'
+            description 'Converts .fmb files to .xml'
+            dependsOn 'copySourceForBuild', 'convertFormToXml', 'collectXmlFiles'
+        }
+
         project.task('clean', type: Delete){
             group 'Forms Compile (12c)'
             description 'Cleans up the project'
@@ -104,10 +117,54 @@ class FormsCompilePlugin implements Plugin<Project> {
             into "${project.buildDir}/output/"
         }
 
-        project.task('build'){
+        project.task('collectXmlFiles', type:Copy){
             group 'Forms Compile (12c)'
-            description 'Runs all tasks necessary for a full build'
-            dependsOn 'copySourceForBuild', 'compileForms', 'copyExecutablesToOutput'
+            description 'Copy all xml files into xml directory'
+            dependsOn 'convertFormToXml'
+            shouldRunAfter 'convertFormToXml'
+
+            from(project.buildDir) {
+                extension.fileTypes.each {
+                    include("**/*.xml")
+                }
+            }
+            into "${project.buildDir}/xml/"
+        }
+
+        project.task('convertFormToXml'){
+            group 'Forms Compile (12c)'
+            description 'Converts all files to xml format'
+            dependsOn 'copySourceForBuild'
+
+            doLast {
+                //if they didn't explicitly set compiler path, search for it
+                if(extension.xmlConverterPath == null || extension.xmlConverterPath.isEmpty()){
+                    extension.xmlConverterPath = findExecutable(
+                            extension.foldersToSearchForCompiler
+                                    .findAll{it != null && it != "null"}, //exclude any nulls
+                            extension.xmlConverterFileName)
+                }
+
+                if(extension.xmlConverterPath == null){
+                    project.logger.error "Unable to find a converter! Please specify the path explicitly."
+                    throw new Exception("No Converter Found")
+                } else {
+                    project.logger.info("Using converter: '${extension.xmlConverterPath}'")
+                }
+
+                def pool = Executors.newFixedThreadPool(extension.maxCompilerThreads)
+
+                project.fileTree(project.buildDir).matching{include "**/*.fmb"}.each { File f ->
+                    pool.execute {
+                        project.exec {
+                            commandLine extension.xmlConverterPath, f.getAbsolutePath(), 'OVERWRITE=YES'
+                        }
+                    }
+                }
+
+                pool.shutdown()
+                pool.awaitTermination(extension.taskTimeoutMinutes, TimeUnit.MINUTES)
+            }
         }
 
         project.task('compileForms'){
@@ -118,17 +175,17 @@ class FormsCompilePlugin implements Plugin<Project> {
             doLast {
                 //if they didn't explicitly set compiler path, search for it
                 if(extension.compilerPath == null || extension.compilerPath.isEmpty()){
-                    extension.compilerPath = findCompiler(
+                    extension.compilerPath = findExecutable(
                             extension.foldersToSearchForCompiler
                                     .findAll{it != null && it != "null"}, //exclude any nulls
                             extension.compilerFileName)
                 }
 
                 if(extension.compilerPath == null){
-                    println "Unable to find a compiler! Please set the ORACLE_HOME env variable."
+                    project.logger.error "Unable to find a compiler! Please specify the path explicitly."
                     throw new Exception("No Compiler Found")
                 } else {
-                    println("Using compiler: '${extension.compilerPath}'")
+                    project.logger.info("Using compiler: '${extension.compilerPath}'")
                 }
 
                 //load compile config
@@ -138,7 +195,7 @@ class FormsCompilePlugin implements Plugin<Project> {
                         compileProps.load(it)
                     }
                 } catch (Exception e){
-                    logger.warn("Unable to load properties file, will try to use environment variables. Error was: ${e.message}")
+                    project.logger.warn("Unable to load properties file, will try to use environment variables. Error was: ${e.message}")
                 }
                 def sid = compileProps.sid
 
@@ -170,14 +227,14 @@ class FormsCompilePlugin implements Plugin<Project> {
                 def pool = Executors.newFixedThreadPool(extension.maxCompilerThreads)
 
                 //compile all libraries
-                println "Compiling Libraries"
+                project.logger.info "Compiling Libraries"
                 files.each{ filetype, fileList ->
                     if(filetype.moduleType == ModuleType.LIBRARY){
                         fileList.each{ lib ->
                             pool.execute {
                                 def modulePath = lib.getAbsolutePath()
                                 def command = "${extension.compilerPath} module=\"$modulePath\" logon=no module_type=library batch=yes compile_all=special"
-                                println "compiling $modulePath"
+                                project.logger.debug "compiling $modulePath"
                                 def proc = command.execute()
                                 proc.waitForOrKill(extension.compilerTimeoutMs)
                             }
@@ -186,7 +243,7 @@ class FormsCompilePlugin implements Plugin<Project> {
                 }
 
                 //compile all menus
-                println "Compiling Menus"
+                project.logger.info "Compiling Menus"
                 files.each{ filetype, fileList ->
                     if(filetype.moduleType == ModuleType.MENU){
                         fileList.each{ menu ->
@@ -194,12 +251,12 @@ class FormsCompilePlugin implements Plugin<Project> {
                                 def modulePath = menu.getAbsolutePath()
                                 def schema = getSchemaForFilename(modulePath).toLowerCase()
                                 if(schema == null){
-                                    println "no schema found for $modulePath"
+                                    project.logger.warn "no schema found for $modulePath"
                                 }
                                 def user = compileProps."${schema}User" ?: System.env."${schema}User"
                                 def pass = compileProps."${schema}Pass" ?: System.env."${schema}Pass"
                                 def command = "${extension.compilerPath} module=\"$modulePath\" userid=$user/$pass@$sid module_type=menu batch=yes compile_all=special"
-                                println "compiling $modulePath as $schema"
+                                project.logger.debug "compiling $modulePath as $schema"
                                 def proc = command.execute()
                                 proc.waitForOrKill(extension.compilerTimeoutMs)
                             }
