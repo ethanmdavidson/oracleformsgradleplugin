@@ -148,7 +148,7 @@ class FormsCompilePlugin implements Plugin<Project> {
                     project.logger.error "Unable to find a converter! Please specify the path explicitly."
                     throw new Exception("No Converter Found")
                 } else {
-                    project.logger.info("Using converter: '${extension.xmlConverterPath}'")
+                    project.logger.quiet("Using converter: '${extension.xmlConverterPath}'")
                 }
 
                 project.fileTree(project.buildDir).matching{include "**/*.fmb"}.each { File f ->
@@ -178,7 +178,7 @@ class FormsCompilePlugin implements Plugin<Project> {
                     project.logger.error "Unable to find a compiler! Please specify the path explicitly."
                     throw new Exception("No Compiler Found")
                 } else {
-                    project.logger.info("Using compiler: '${extension.compilerPath}'")
+                    project.logger.quiet("Using compiler: '${extension.compilerPath}'")
                 }
 
                 //load compile config
@@ -220,14 +220,14 @@ class FormsCompilePlugin implements Plugin<Project> {
                 def pool = Executors.newFixedThreadPool(extension.maxCompilerThreads)
 
                 //compile all libraries
-                project.logger.info "Compiling Libraries"
+                project.logger.lifecycle "Compiling Libraries"
                 files.each{ filetype, fileList ->
                     if(filetype.moduleType == ModuleType.LIBRARY){
                         fileList.each{ lib ->
                             pool.execute {
                                 def modulePath = lib.getAbsolutePath()
                                 def command = "${extension.compilerPath} module=\"$modulePath\" logon=no module_type=library batch=yes compile_all=special"
-                                project.logger.debug "compiling $modulePath"
+                                project.logger.quiet "compiling $modulePath"
                                 def proc = command.execute()
                                 proc.waitForOrKill(extension.compilerTimeoutMs)
                             }
@@ -236,7 +236,7 @@ class FormsCompilePlugin implements Plugin<Project> {
                 }
 
                 //compile all menus
-                project.logger.info "Compiling Menus"
+                project.logger.lifecycle "Compiling Menus"
                 files.each{ filetype, fileList ->
                     if(filetype.moduleType == ModuleType.MENU){
                         fileList.each{ menu ->
@@ -249,7 +249,7 @@ class FormsCompilePlugin implements Plugin<Project> {
                                 def user = compileProps."${schema}User" ?: System.env."${schema}User"
                                 def pass = compileProps."${schema}Pass" ?: System.env."${schema}Pass"
                                 def command = "${extension.compilerPath} module=\"$modulePath\" userid=$user/$pass@$sid module_type=menu batch=yes compile_all=special"
-                                project.logger.debug "compiling $modulePath as $schema"
+                                project.logger.quiet "compiling $modulePath as $schema"
                                 def proc = command.execute()
                                 proc.waitForOrKill(extension.compilerTimeoutMs)
                             }
@@ -258,7 +258,7 @@ class FormsCompilePlugin implements Plugin<Project> {
                 }
 
                 //compile all forms
-                println "Compiling Forms"
+                project.logger.lifecycle "Compiling Forms"
                 files.each{ filetype, fileList ->
                     if(filetype.moduleType == ModuleType.FORM){
                         fileList.each { form ->
@@ -266,12 +266,12 @@ class FormsCompilePlugin implements Plugin<Project> {
                                 def modulePath = form.getAbsolutePath()
                                 def schema = getSchemaForFilename(modulePath).toLowerCase()
                                 if(schema == null){
-                                    println "no schema found for $modulePath"
+                                    project.logger.warn "no schema found for $modulePath"
                                 }
                                 def user = compileProps."${schema}User" ?: System.env."${schema}User"
                                 def pass = compileProps."${schema}Pass" ?: System.env."${schema}Pass"
                                 def command = "${extension.compilerPath} module=\"$modulePath\" userid=$user/$pass@$sid module_type=form batch=yes compile_all=special"
-                                println "compiling $modulePath as $schema"
+                                project.logger.quiet "compiling $modulePath as $schema"
                                 def proc = command.execute()
                                 proc.waitForOrKill(extension.compilerTimeoutMs)
                             }
