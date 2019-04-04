@@ -21,7 +21,7 @@ publishing {	//maven-publish configuration
     publications {	//the artifacts to publish
         oracleformsPlugin(MavenPublication){
             artifactId = 'oracleforms'
-            
+
             from components.java
         }
     }
@@ -41,23 +41,19 @@ dependencies {
     compile 'commons-io:commons-io:2.6'
 }
 
+pluginBundle {
+    website = 'https://github.com/ethanmdavidson/oracleformsgradleplugin'
+    vcsUrl = 'https://github.com/ethanmdavidson/oracleformsgradleplugin'
+    description = "A Gradle plugin for working with Oracle Forms"
+    tags = ['oracle', 'forms', 'reports', '12c', 'fmb', 'fmx', 'rdf', 'mmb', 'mmx', 'pll', 'plx', 'olb']
+}
+
 gradlePlugin {
     plugins {
         oracleformsPlugin {
             id = 'com.mcwa.oracleforms'
-            implementationClass = 'com.mcwa.oracleformsgradleplugin.FormsCompilePlugin'
-        }
-    }
-}
-
-pluginBundle {
-    website = 'http://mcwa.com'
-    description = "A Gradle plugin for working with Oracle Forms"
-    tags = ['oracle', 'forms', 'reports', '12c', 'fmb', 'fmx', 'rdf', 'mmb', 'mmx', 'pll', 'plx', 'olb']
-    
-    plugins {
-        oracleformsPlugin {
             displayName = 'Oracle Forms Gradle plugin'
+            implementationClass = 'com.mcwa.oracleformsgradleplugin.FormsCompilePlugin'
         }
     }
 }
