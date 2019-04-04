@@ -2,12 +2,62 @@ plugins {
     id 'java-gradle-plugin'
     id 'groovy'
     id 'nu.studer.credentials' version '1.0.7'
+    id 'com.gradle.plugin-publish' version '0.10.1'
+    id "maven-publish"
 }
 
+project.group = 'com.mcwa'
+project.version = '0.1'
+
+def archivaUrl = 'http://subversion:8080/repository/internal'
+def archivaUser = credentials.ArchivaPublishUsername
+def archivaPass = credentials.ArchivaPublishPassword
+
 repositories {
-    maven { url 'http://subversion:8080/repository/internal' }
+    maven { url archivaUrl }
+}
+
+publishing {	//maven-publish configuration
+    publications {	//the artifacts to publish
+        oracleformsPlugin(MavenPublication){
+            artifactId = 'oracleforms'
+            
+            from components.java
+        }
+    }
+
+    repositories {	//the repos to publish to
+        maven {
+            url archivaUrl
+            credentials(PasswordCredentials){
+                username = archivaUser
+                password = archivaPass
+            }
+        }
+    }
 }
 
 dependencies {
     compile 'commons-io:commons-io:2.6'
+}
+
+gradlePlugin {
+    plugins {
+        oracleformsPlugin {
+            id = 'com.mcwa.oracleforms'
+            implementationClass = 'com.mcwa.oracleformsgradleplugin.FormsCompilePlugin'
+        }
+    }
+}
+
+pluginBundle {
+    website = 'http://mcwa.com'
+    description = "A Gradle plugin for working with Oracle Forms"
+    tags = ['oracle', 'forms', 'reports', '12c', 'fmb', 'fmx', 'rdf', 'mmb', 'mmx', 'pll', 'plx', 'olb']
+    
+    plugins {
+        oracleformsPlugin {
+            displayName = 'Oracle Forms Gradle plugin'
+        }
+    }
 }
