@@ -190,7 +190,7 @@ class FormsCompilePlugin implements Plugin<Project> {
                 } catch (Exception e){
                     project.logger.warn("Unable to load properties file, will try to use environment variables. Error was: ${e.message}")
                 }
-                def sid = compileProps.sid
+                def sid = compileProps.sid  ?: System.env.ORACLE_SID
 
                 //TODO: refactor this bit to work dynamically with multiple compileableTypes
                 // moduleTypes should be in an enum, and should define order
