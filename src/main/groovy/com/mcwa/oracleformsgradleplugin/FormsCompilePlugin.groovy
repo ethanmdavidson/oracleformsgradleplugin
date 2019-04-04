@@ -6,7 +6,6 @@ import org.gradle.api.Plugin
 import org.gradle.api.Project
 import org.gradle.api.tasks.Copy
 import org.gradle.api.tasks.Delete
-import org.gradle.api.tasks.Exec
 
 import java.util.concurrent.Executors
 import java.util.concurrent.TimeUnit
@@ -84,8 +83,8 @@ class FormsCompilePlugin implements Plugin<Project> {
             description 'Cleans up the project'
 
             delete "${project.projectDir}/build"
-            //the forms compiler copies pll files into project root for some reason
             delete project.fileTree(project.projectDir){
+                //the forms compiler copies pll files into project root for some reason
                 include '*.pll'
                 include 'sqlnet.log'
             }
@@ -152,18 +151,12 @@ class FormsCompilePlugin implements Plugin<Project> {
                     project.logger.info("Using converter: '${extension.xmlConverterPath}'")
                 }
 
-                def pool = Executors.newFixedThreadPool(extension.maxCompilerThreads)
-
                 project.fileTree(project.buildDir).matching{include "**/*.fmb"}.each { File f ->
-                    pool.execute {
-                        project.exec {
-                            commandLine extension.xmlConverterPath, f.getAbsolutePath(), 'OVERWRITE=YES'
-                        }
+                    project.exec {
+                        workingDir f.getParentFile()
+                        commandLine extension.xmlConverterPath, f.getAbsolutePath(), 'OVERWRITE=YES'
                     }
                 }
-
-                pool.shutdown()
-                pool.awaitTermination(extension.taskTimeoutMinutes, TimeUnit.MINUTES)
             }
         }
 
