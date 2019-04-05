@@ -95,6 +95,7 @@ class FormsCompilePlugin implements Plugin<Project> {
             description 'Copy all source files into build directory'
 
             from(new File(project.projectDir, "/src/main/").listFiles()) {
+                include "**/*.cfg"
                 extension.fileTypes.each {
                     include("**/*.${it.sourceFileExtension}")
                 }
@@ -226,7 +227,7 @@ class FormsCompilePlugin implements Plugin<Project> {
                         fileList.each{ lib ->
                             pool.execute {
                                 def modulePath = lib.getAbsolutePath()
-                                def command = "${extension.compilerPath} module=\"$modulePath\" logon=no module_type=library batch=yes compile_all=special"
+                                def command = """${extension.compilerPath} module="$modulePath" logon=no module_type=library batch=yes compile_all=special"""
                                 project.logger.quiet "compiling $modulePath"
                                 def proc = command.execute()
                                 proc.waitForOrKill(extension.compilerTimeoutMs)
@@ -248,7 +249,7 @@ class FormsCompilePlugin implements Plugin<Project> {
                                 }
                                 def user = compileProps."${schema}User" ?: System.env."${schema}User"
                                 def pass = compileProps."${schema}Pass" ?: System.env."${schema}Pass"
-                                def command = "${extension.compilerPath} module=\"$modulePath\" userid=$user/$pass@$sid module_type=menu batch=yes compile_all=special"
+                                def command = """${extension.compilerPath} module="$modulePath" userid=$user/$pass@$sid module_type=menu batch=yes compile_all=special"""
                                 project.logger.quiet "compiling $modulePath as $schema"
                                 def proc = command.execute()
                                 proc.waitForOrKill(extension.compilerTimeoutMs)
@@ -270,7 +271,7 @@ class FormsCompilePlugin implements Plugin<Project> {
                                 }
                                 def user = compileProps."${schema}User" ?: System.env."${schema}User"
                                 def pass = compileProps."${schema}Pass" ?: System.env."${schema}Pass"
-                                def command = "${extension.compilerPath} module=\"$modulePath\" userid=$user/$pass@$sid module_type=form batch=yes compile_all=special"
+                                def command = """${extension.compilerPath} module="$modulePath" userid=$user/$pass@$sid module_type=form batch=yes compile_all=special"""
                                 project.logger.quiet "compiling $modulePath as $schema"
                                 def proc = command.execute()
                                 proc.waitForOrKill(extension.compilerTimeoutMs)
