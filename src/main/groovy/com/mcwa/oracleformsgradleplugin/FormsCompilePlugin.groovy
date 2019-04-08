@@ -167,7 +167,7 @@ class FormsCompilePlugin implements Plugin<Project> {
                         def command = """${extension.xmlConverterPath} "$modulePath" OVERWRITE=YES"""
                         project.logger.quiet "converting $modulePath"
                         project.logger.debug(command)
-                        def proc = command.execute([], f.parent)
+                        def proc = command.execute([], f.getParentFile())
                         proc.waitForOrKill(extension.compilerTimeoutMs)
                     }
                 }
@@ -249,7 +249,7 @@ class FormsCompilePlugin implements Plugin<Project> {
                     compileSteps[priority].each { fileType ->
                         if(fileType.compilationRequired) {
                             project.logger.lifecycle("Compiling type: ${fileType}")
-                            files[fileType].each{ lib ->
+                            files[fileType].each{ File lib ->
                                 pool.execute {
                                     def modulePath = lib.getAbsolutePath()
                                     def username = null
@@ -266,7 +266,7 @@ class FormsCompilePlugin implements Plugin<Project> {
                                     def command = fileType.getCompileCommand(extension.compilerPath, modulePath, username, password, sid)
                                     project.logger.quiet "compiling $modulePath"
                                     project.logger.debug(command)
-                                    def proc = command.execute([], f.parent)
+                                    def proc = command.execute([], lib.getParentFile())
                                     proc.waitForOrKill(extension.compilerTimeoutMs)
                                 }
                             }
