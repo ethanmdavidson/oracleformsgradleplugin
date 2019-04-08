@@ -124,7 +124,7 @@ class FormsCompilePlugin implements Plugin<Project> {
             into ext.buildOutputSubdir
 
             eachFile { FileCopyDetails fcd ->
-                fcd.path = fcd.path..replaceAll("(?i)/forms/", "/exe/")
+                fcd.path = fcd.path.replaceAll("(?i)/forms/", "/exe/")
             }
         }
 
