@@ -83,6 +83,8 @@ class FormsCompilePlugin implements Plugin<Project> {
             description 'Cleans up the project'
 
             delete "${project.projectDir}/build"
+            delete "${project.projectDir}/output"
+            delete "${project.projectDir}/xml"
             delete project.fileTree(project.projectDir){
                 //the forms compiler copies pll files into project root for some reason
                 include '*.pll'
@@ -114,7 +116,7 @@ class FormsCompilePlugin implements Plugin<Project> {
                     include("**/*.${it.binaryFileExtension}")
                 }
             }
-            into "${project.buildDir}/output/"
+            into "${project.projectDir}/output/"
 
             rename { filename ->
                 filename.replace("(?i)forms", "exe")
@@ -132,7 +134,7 @@ class FormsCompilePlugin implements Plugin<Project> {
                     include("**/*.xml")
                 }
             }
-            into "${project.buildDir}/xml/"
+            into "${project.projectDir}/xml/"
         }
 
         project.task('convertFormToXml'){
