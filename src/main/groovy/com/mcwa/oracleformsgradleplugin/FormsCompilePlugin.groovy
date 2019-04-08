@@ -73,12 +73,12 @@ class FormsCompilePlugin implements Plugin<Project> {
         ext.buildSourceSubdir = ext.buildSourceSubdir ?: new File(project.buildDir, "oracleforms")
         ext.buildOutputSubdir = ext.buildOutputSubdir ?: new File(project.buildDir, "output")
         ext.buildXmlSubdir = ext.buildXmlSubdir ?: new File(project.buildDir, "xml")
-        ext.buildXmlSubdir = ext.buildXmlSubdir ?: new File(project.buildDir, "logs")
+        ext.buildLogSubdir = ext.buildLogSubdir ?: new File(project.buildDir, "logs")
 
         project.task('build'){
             group 'Forms Compile (12c)'
             description 'Runs all tasks necessary for a full build'
-            dependsOn 'copySourceForBuild', 'compileForms', 'collectCompiledFiles'
+            dependsOn 'copySourceForBuild', 'compileForms', 'collectCompiledFiles', 'collectLogFiles'
         }
 
         project.task('generateXml'){
