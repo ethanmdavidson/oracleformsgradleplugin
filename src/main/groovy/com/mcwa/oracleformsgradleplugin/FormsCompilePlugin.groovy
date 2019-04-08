@@ -216,7 +216,7 @@ class FormsCompilePlugin implements Plugin<Project> {
 
                 //collect all compileable files
                 //TODO: folders to search for compilables should be set in extension object
-                def schemaDirs = project.layout.files { project.buildDir.listFiles() }
+                def schemaDirs =  project.buildDir.listFiles()
 
                 schemaDirs.filter{it.isDirectory()}.each{
                     it.eachFileRecurse(FileType.FILES) { file ->
@@ -240,12 +240,12 @@ class FormsCompilePlugin implements Plugin<Project> {
 
                 //compile
                 compileSteps.keySet().sort().each{ priority ->
-                    project.logger.lifecycle("Compiling files with priority $priority: ${compileSteps[priority]}")
+                    project.logger.lifecycle("Compiling types with priority $priority: ${compileSteps[priority]}")
 
                     compileSteps[priority].each { fileType ->
                         if(fileType.compilationRequired) {
-                            project.logger.lifecycle("Compiling type: ${fileType.moduleType}")
-                            files[fileType.moduleType].each{ lib ->
+                            project.logger.lifecycle("Compiling type: ${fileType}")
+                            files[fileType].each{ lib ->
                                 pool.execute {
                                     def modulePath = lib.getAbsolutePath()
                                     def username = null
@@ -267,7 +267,7 @@ class FormsCompilePlugin implements Plugin<Project> {
                                 }
                             }
                         } else {
-                            project.logger.lifecycle("No compile required for type: ${fileType.moduleType}")
+                            project.logger.lifecycle("No compile required for type: ${fileType}")
                         }
                     }
                 }
