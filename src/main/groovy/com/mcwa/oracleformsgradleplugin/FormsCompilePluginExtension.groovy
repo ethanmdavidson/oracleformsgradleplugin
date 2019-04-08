@@ -37,5 +37,5 @@ class FormsCompilePluginExtension {
     File buildLogSubdir = null
 
     //tokens to grep for in compiler logs
-    List<String> errorTokens = ["FRM-", "ORA-", "TNS-"]
+    List<String> errorTokens = ["FRM-", "ORA-", "TNS-", "PL/SQL ERROR"]
 }

@@ -291,11 +291,8 @@ class FormsCompilePlugin implements Plugin<Project> {
                                     def proc = command.execute([], workingDir)
                                     proc.waitForOrKill(ext.compilerTimeoutMs)
 
-                                    //check that file compiled correctly
-                                    if(!outputFile.exists()) {
-                                        //if compile fails without any compiler log, probably a TNS error
-                                        throw new GradleException("$modulePath failed to compile! Expected output file was: $outputFile")
-                                    } else if(compilerLogFile.exists()){
+                                    //output compiler errors as warnings (because some error codes are just warnings)
+                                    if(compilerLogFile.exists()){
                                         //grep log file for 'ORA-', 'FRM-', etc.
                                         def errorLines = compilerLogFile.text.tokenize('\n').findAll{ line ->
                                             ext.errorTokens.any{ line.contains(it) }
@@ -303,6 +300,11 @@ class FormsCompilePlugin implements Plugin<Project> {
                                         if(!errorLines.isEmpty()){
                                             project.logger.warn("Errors while compiling $modulePath: \n${errorLines.join('\n')}" )
                                         }
+                                    }
+                                    //check that file compiled correctly
+                                    if(!outputFile.exists()) {
+                                        //if compile fails without any compiler log, probably a TNS error
+                                        throw new GradleException("$modulePath failed to compile! Expected output file was: $outputFile")
                                     }
                                 }
                             }
