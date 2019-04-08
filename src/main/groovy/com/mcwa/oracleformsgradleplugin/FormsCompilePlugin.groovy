@@ -216,7 +216,7 @@ class FormsCompilePlugin implements Plugin<Project> {
 
                 //collect all compileable files
                 //TODO: folders to search for compilables should be set in extension object
-                def schemaDirs =  project.buildDir.listFiles()
+                def schemaDirs =  project.layout.files { project.buildDir.listFiles() }
 
                 schemaDirs.filter{it.isDirectory()}.each{
                     it.eachFileRecurse(FileType.FILES) { file ->
