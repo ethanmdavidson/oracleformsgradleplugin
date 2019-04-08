@@ -167,7 +167,7 @@ class FormsCompilePlugin implements Plugin<Project> {
                         def command = """${extension.xmlConverterPath} "$modulePath" OVERWRITE=YES"""
                         project.logger.quiet "converting $modulePath"
                         project.logger.debug(command)
-                        def proc = command.execute()
+                        def proc = command.execute([], f.parent)
                         proc.waitForOrKill(extension.compilerTimeoutMs)
                     }
                 }
@@ -266,7 +266,7 @@ class FormsCompilePlugin implements Plugin<Project> {
                                     def command = fileType.getCompileCommand(extension.compilerPath, modulePath, username, password, sid)
                                     project.logger.quiet "compiling $modulePath"
                                     project.logger.debug(command)
-                                    def proc = command.execute()
+                                    def proc = command.execute([], f.parent)
                                     proc.waitForOrKill(extension.compilerTimeoutMs)
                                 }
                             }
