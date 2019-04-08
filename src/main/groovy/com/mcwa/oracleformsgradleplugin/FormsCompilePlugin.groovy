@@ -100,6 +100,7 @@ class FormsCompilePlugin implements Plugin<Project> {
         project.task('copySourceForBuild', type: Copy){
             group 'Forms Compile (12c)'
             description 'Copy all source files into build directory'
+            caseSensitive false
 
             from(new File(project.projectDir, "/src/main/").listFiles()) {
                 include "**/*.cfg"
@@ -115,6 +116,7 @@ class FormsCompilePlugin implements Plugin<Project> {
             description 'Copy all compiled files into output directory'
             dependsOn 'compileForms'
             shouldRunAfter 'compileForms'
+            caseSensitive false
 
             from(ext.buildSourceSubdir) {
                 ext.fileTypes.each {
@@ -133,6 +135,7 @@ class FormsCompilePlugin implements Plugin<Project> {
             description 'Copy all xml files into xml directory'
             dependsOn 'convertFormToXml'
             shouldRunAfter 'convertFormToXml'
+            caseSensitive false
 
             from(ext.buildSourceSubdir) {
                 ext.fileTypes.each {
@@ -147,6 +150,7 @@ class FormsCompilePlugin implements Plugin<Project> {
             description 'Copy all compiler log files into output directory'
             dependsOn 'compileForms'
             shouldRunAfter 'compileForms'
+            caseSensitive false
 
             from(ext.buildSourceSubdir) {
                 ext.fileTypes.each {
