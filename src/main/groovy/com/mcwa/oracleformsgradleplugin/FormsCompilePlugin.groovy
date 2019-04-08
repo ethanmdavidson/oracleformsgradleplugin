@@ -160,7 +160,8 @@ class FormsCompilePlugin implements Plugin<Project> {
 
                 project.fileTree(project.buildDir).matching{include "**/*.fmb"}.each { File f ->
                     pool.execute {
-                        def command = """${extension.xmlConverterPath} "${f.getAbsolutePath()}" OVERWRITE=YES"""
+                        def modulePath = f.getAbsolutePath()
+                        def command = """${extension.xmlConverterPath} "$modulePath" OVERWRITE=YES"""
                         project.logger.quiet "converting $modulePath"
                         project.logger.debug(command)
                         def proc = command.execute()
