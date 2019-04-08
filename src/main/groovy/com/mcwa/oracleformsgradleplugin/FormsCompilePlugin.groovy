@@ -115,6 +115,10 @@ class FormsCompilePlugin implements Plugin<Project> {
                 }
             }
             into "${project.buildDir}/output/"
+
+            rename { filename ->
+                filename.replace("(?i)forms", "exe")
+            }
         }
 
         project.task('collectXmlFiles', type:Copy){
@@ -152,12 +156,22 @@ class FormsCompilePlugin implements Plugin<Project> {
                     project.logger.quiet("Using converter: '${extension.xmlConverterPath}'")
                 }
 
+                def pool = Executors.newFixedThreadPool(extension.maxCompilerThreads)
+
                 project.fileTree(project.buildDir).matching{include "**/*.fmb"}.each { File f ->
-                    project.exec {
-                        workingDir f.getParentFile()
-                        commandLine extension.xmlConverterPath, f.getAbsolutePath(), 'OVERWRITE=YES'
+                    pool.execute {
+                        def command = """${extension.xmlConverterPath} "${f.getAbsolutePath()}" OVERWRITE=YES"""
+                        project.logger.quiet "converting $modulePath"
+                        project.logger.debug(command)
+                        def proc = command.execute()
+                        proc.waitForOrKill(extension.compilerTimeoutMs)
                     }
                 }
+
+                project.logger.trace("All jobs submitted to pool, awaiting shutdown...")
+                pool.shutdown()
+                pool.awaitTermination(extension.taskTimeoutMinutes, TimeUnit.MINUTES)
+                project.logger.trace("Job pool terminated.")
             }
         }
 
@@ -193,16 +207,14 @@ class FormsCompilePlugin implements Plugin<Project> {
                 }
                 def sid = compileProps.sid  ?: System.env.ORACLE_SID
 
-                //TODO: refactor this bit to work dynamically with multiple compileableTypes
-                // moduleTypes should be in an enum, and should define order
-                // but we need to keep separate lists of each file we find by type so
+                // we need to keep separate lists of each file we find by type so
                 // we can appropriately check its completion by looking at the binary file
                 def files = [:]
                 extension.fileTypes.each{
                     files[it] = []
                 }
 
-                //collect all libraries, menus, forms
+                //collect all compileable files
                 //TODO: folders to search for compilables should be set in extension object
                 def schemaDirs = project.layout.files { project.buildDir.listFiles() }
 
@@ -213,75 +225,57 @@ class FormsCompilePlugin implements Plugin<Project> {
                         def fileType = extension.fileTypes.find{ it.sourceFileExtension.equalsIgnoreCase(FilenameUtils.getExtension(filename))}
 
                         if(fileType != null){
+                            project.logger.debug("Found file $file, adding to fileType $fileType")
                             files[fileType].add(file)
+                        } else {
+                            project.logger.debug("Not compiling $file because fileType could not be determined.")
                         }
                     }
                 }
 
                 def pool = Executors.newFixedThreadPool(extension.maxCompilerThreads)
 
-                //compile all libraries
-                project.logger.lifecycle "Compiling Libraries"
-                files.each{ filetype, fileList ->
-                    if(filetype.moduleType == ModuleType.LIBRARY){
-                        fileList.each{ lib ->
-                            pool.execute {
-                                def modulePath = lib.getAbsolutePath()
-                                def command = """${extension.compilerPath} module="$modulePath" logon=no module_type=library batch=yes compile_all=special"""
-                                project.logger.quiet "compiling $modulePath"
-                                def proc = command.execute()
-                                proc.waitForOrKill(extension.compilerTimeoutMs)
-                            }
-                        }
-                    }
-                }
+                //get all filetypes by compileOrder
+                def compileSteps = extension.fileTypes.groupBy{it.compileOrder}
 
-                //compile all menus
-                project.logger.lifecycle "Compiling Menus"
-                files.each{ filetype, fileList ->
-                    if(filetype.moduleType == ModuleType.MENU){
-                        fileList.each{ menu ->
-                            pool.execute {
-                                def modulePath = menu.getAbsolutePath()
-                                def schema = getSchemaForFilename(modulePath).toLowerCase()
-                                if(schema == null){
-                                    project.logger.warn "no schema found for $modulePath"
+                //compile
+                compileSteps.keySet().sort().each{ priority ->
+                    project.logger.lifecycle("Compiling files with priority $priority: ${compileSteps[priority]}")
+
+                    compileSteps[priority].each { fileType ->
+                        if(fileType.compilationRequired) {
+                            project.logger.lifecycle("Compiling type: ${fileType.moduleType}")
+                            files[fileType.moduleType].each{ lib ->
+                                pool.execute {
+                                    def modulePath = lib.getAbsolutePath()
+                                    def username = null
+                                    def password = null
+                                    if (fileType.logonRequired){
+                                        def schema = getSchemaForFilename(modulePath).toLowerCase()
+                                        if(schema == null){
+                                            project.logger.warn "no schema found for $modulePath"
+                                        }
+                                        username = compileProps."${schema}User" ?: System.env."${schema}User"
+                                        password = compileProps."${schema}Pass" ?: System.env."${schema}Pass"
+                                    }
+
+                                    def command = fileType.getCompileCommand(extension.compilerPath, modulePath, username, password, sid)
+                                    project.logger.quiet "compiling $modulePath"
+                                    project.logger.debug(command)
+                                    def proc = command.execute()
+                                    proc.waitForOrKill(extension.compilerTimeoutMs)
                                 }
-                                def user = compileProps."${schema}User" ?: System.env."${schema}User"
-                                def pass = compileProps."${schema}Pass" ?: System.env."${schema}Pass"
-                                def command = """${extension.compilerPath} module="$modulePath" userid=$user/$pass@$sid module_type=menu batch=yes compile_all=special"""
-                                project.logger.quiet "compiling $modulePath as $schema"
-                                def proc = command.execute()
-                                proc.waitForOrKill(extension.compilerTimeoutMs)
                             }
+                        } else {
+                            project.logger.lifecycle("No compile required for type: ${fileType.moduleType}")
                         }
                     }
                 }
 
-                //compile all forms
-                project.logger.lifecycle "Compiling Forms"
-                files.each{ filetype, fileList ->
-                    if(filetype.moduleType == ModuleType.FORM){
-                        fileList.each { form ->
-                            pool.execute {
-                                def modulePath = form.getAbsolutePath()
-                                def schema = getSchemaForFilename(modulePath).toLowerCase()
-                                if(schema == null){
-                                    project.logger.warn "no schema found for $modulePath"
-                                }
-                                def user = compileProps."${schema}User" ?: System.env."${schema}User"
-                                def pass = compileProps."${schema}Pass" ?: System.env."${schema}Pass"
-                                def command = """${extension.compilerPath} module="$modulePath" userid=$user/$pass@$sid module_type=form batch=yes compile_all=special"""
-                                project.logger.quiet "compiling $modulePath as $schema"
-                                def proc = command.execute()
-                                proc.waitForOrKill(extension.compilerTimeoutMs)
-                            }
-                        }
-                    }
-                }
-
+                project.logger.trace("All jobs submitted to pool, awaiting shutdown...")
                 pool.shutdown()
                 pool.awaitTermination(extension.taskTimeoutMinutes, TimeUnit.MINUTES)
+                project.logger.trace("Job pool terminated.")
             }
         }
     }

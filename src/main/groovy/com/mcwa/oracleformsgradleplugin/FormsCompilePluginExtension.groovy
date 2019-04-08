@@ -13,10 +13,11 @@ class FormsCompilePluginExtension {
 
     String xmlConverterPath = null //if this is set explicitly, no search will be performed
 
-    List<CompileableFileType> fileTypes = [
-            new CompileableFileType("pll", "plx", ModuleType.LIBRARY),
-            new CompileableFileType("mmb", "mmx", ModuleType.MENU),
-            new CompileableFileType("fmb", "fmx", ModuleType.FORM)]
+    List<OracleFileType> fileTypes = [
+            new OracleFileType("pll", "plx", 0, true, false, 'library'),
+            new OracleFileType("mmb", "mmx", 1, true, true, 'menu'),
+            new OracleFileType("fmb", "fmx", 2, true, true, 'form'),
+            new OracleFileType('rdf', 'rdf', 2, false, false, 'report') ]
 
     def compilerTimeoutMs = 60*1000	//max time to wait for compile process to finish
 
