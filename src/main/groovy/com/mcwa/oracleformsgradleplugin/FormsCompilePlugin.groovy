@@ -4,6 +4,7 @@ import groovy.io.FileType
 import org.apache.commons.io.FilenameUtils
 import org.gradle.api.Plugin
 import org.gradle.api.Project
+import org.gradle.api.file.FileCopyDetails
 import org.gradle.api.tasks.Copy
 import org.gradle.api.tasks.Delete
 
@@ -118,8 +119,8 @@ class FormsCompilePlugin implements Plugin<Project> {
             }
             into "${project.projectDir}/output/"
 
-            rename { filename ->
-                filename.replace("(?i)forms", "exe")
+            eachFile { FileCopyDetails fcd ->
+                fcd.path = fcd.path.replace("(?i)forms", "exe")
             }
         }
 
