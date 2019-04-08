@@ -15,6 +15,7 @@ class FormsCompilePluginExtension {
 
     List<OracleFileType> fileTypes = [
             new OracleFileType("pll", "plx", 0, true, false, 'library'),
+            new OracleFileType("olb", "olb", 0, false, false, 'olb'),
             new OracleFileType("mmb", "mmx", 1, true, true, 'menu'),
             new OracleFileType("fmb", "fmx", 2, true, true, 'form'),
             new OracleFileType('rdf', 'rdf', 2, false, false, 'report') ]
