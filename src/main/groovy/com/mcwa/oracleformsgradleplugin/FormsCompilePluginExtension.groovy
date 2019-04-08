@@ -27,4 +27,10 @@ class FormsCompilePluginExtension {
     def maxCompilerThreads = 8	//number of compiler processes to run concurrently
 
     def taskTimeoutMinutes	= 60	//number of minutes to wait for all compiler processes
+
+    File buildSourceSubdir = null
+
+    File buildOutputSubdir = null
+
+    File buildXmlSubdir = null
 }

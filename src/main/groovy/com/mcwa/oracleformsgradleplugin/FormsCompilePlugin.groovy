@@ -12,7 +12,8 @@ import java.util.concurrent.Executors
 import java.util.concurrent.TimeUnit
 
 class FormsCompilePlugin implements Plugin<Project> {
-    def findExecutable(foldersToCheck, executableFilename){
+
+    static def findExecutable(foldersToCheck, executableFilename){
         def executable = null
         for(String filename : foldersToCheck){
             //eachFileRecurse seems to be the best way to search for files, but
@@ -29,7 +30,7 @@ class FormsCompilePlugin implements Plugin<Project> {
         return executable
     }
 
-    def getSchemaForFilename(String path){
+    static def getSchemaForFilename(String path){
         //when given a path to a file, this will return the string representing the schema
         // that file should be compiled with.
         //first check if the file has a corresponding config file
@@ -65,7 +66,12 @@ class FormsCompilePlugin implements Plugin<Project> {
     }
 
     void apply(Project project){
-        def extension = project.extensions.create('oracleForms', FormsCompilePluginExtension)
+        def ext = project.extensions.create('oracleForms', FormsCompilePluginExtension)
+
+        //setup default build folders
+        ext.buildSourceSubdir = ext.buildSourceSubdir ?: new File(project.buildDir, "oracleforms")
+        ext.buildOutputSubdir = ext.buildOutputSubdir ?: new File(project.buildDir, "output")
+        ext.buildXmlSubdir = ext.buildXmlSubdir ?: new File(project.buildDir, "xml")
 
         project.task('build'){
             group 'Forms Compile (12c)'
@@ -83,14 +89,9 @@ class FormsCompilePlugin implements Plugin<Project> {
             group 'Forms Compile (12c)'
             description 'Cleans up the project'
 
-            delete "${project.projectDir}/build"
-            delete "${project.projectDir}/output"
-            delete "${project.projectDir}/xml"
-            delete project.fileTree(project.projectDir){
-                //the forms compiler copies pll files into project root for some reason
-                include '*.pll'
-                include 'sqlnet.log'
-            }
+            delete ext.buildSourceSubdir
+            delete ext.buildOutputSubdir
+            delete ext.buildXmlSubdir
         }
 
         project.task('copySourceForBuild', type: Copy){
@@ -99,11 +100,11 @@ class FormsCompilePlugin implements Plugin<Project> {
 
             from(new File(project.projectDir, "/src/main/").listFiles()) {
                 include "**/*.cfg"
-                extension.fileTypes.each {
+                ext.fileTypes.each {
                     include("**/*.${it.sourceFileExtension}")
                 }
             }
-            into project.buildDir
+            into ext.buildSourceSubdir
         }
 
         project.task('copyExecutablesToOutput', type:Copy){
@@ -112,12 +113,12 @@ class FormsCompilePlugin implements Plugin<Project> {
             dependsOn 'compileForms'
             shouldRunAfter 'compileForms'
 
-            from(project.buildDir) {
-                extension.fileTypes.each {
+            from(ext.buildSourceSubdir) {
+                ext.fileTypes.each {
                     include("**/*.${it.binaryFileExtension}")
                 }
             }
-            into "${project.projectDir}/output/"
+            into ext.buildOutputSubdir
 
             eachFile { FileCopyDetails fcd ->
                 fcd.path = fcd.path.replace("(?i)forms", "exe")
@@ -130,12 +131,12 @@ class FormsCompilePlugin implements Plugin<Project> {
             dependsOn 'convertFormToXml'
             shouldRunAfter 'convertFormToXml'
 
-            from(project.buildDir) {
-                extension.fileTypes.each {
+            from(ext.buildSourceSubdir) {
+                ext.fileTypes.each {
                     include("**/*.xml")
                 }
             }
-            into "${project.projectDir}/xml/"
+            into ext.buildXmlSubdir
         }
 
         project.task('convertFormToXml'){
@@ -145,36 +146,35 @@ class FormsCompilePlugin implements Plugin<Project> {
 
             doLast {
                 //if they didn't explicitly set compiler path, search for it
-                if(extension.xmlConverterPath == null || extension.xmlConverterPath.isEmpty()){
-                    extension.xmlConverterPath = findExecutable(
-                            extension.foldersToSearchForCompiler
-                                    .findAll{it != null && it != "null"}, //exclude any nulls
-                            extension.xmlConverterFileName)
+                if(ext.xmlConverterPath == null || ext.xmlConverterPath.isEmpty()){
+                    ext.xmlConverterPath = findExecutable(
+                            ext.foldersToSearchForCompiler.findAll{it != null && it != "null"}, //exclude any nulls
+                            ext.xmlConverterFileName)
                 }
 
-                if(extension.xmlConverterPath == null){
+                if(ext.xmlConverterPath == null){
                     project.logger.error "Unable to find a converter! Please specify the path explicitly."
                     throw new Exception("No Converter Found")
                 } else {
-                    project.logger.quiet("Using converter: '${extension.xmlConverterPath}'")
+                    project.logger.quiet("Using converter: '${ext.xmlConverterPath}'")
                 }
 
-                def pool = Executors.newFixedThreadPool(extension.maxCompilerThreads)
+                def pool = Executors.newFixedThreadPool(ext.maxCompilerThreads)
 
-                project.fileTree(project.buildDir).matching{include "**/*.fmb"}.each { File f ->
+                project.fileTree(ext.buildSourceSubdir).matching{include "**/*.fmb"}.each { File f ->
                     pool.execute {
                         def modulePath = f.getAbsolutePath()
-                        def command = """${extension.xmlConverterPath} "$modulePath" OVERWRITE=YES"""
-                        project.logger.quiet "converting $modulePath"
+                        def command = """${ext.xmlConverterPath} "$modulePath" OVERWRITE=YES"""
+                        project.logger.quiet "converting $modulePath to xml"
                         project.logger.debug(command)
                         def proc = command.execute([], f.getParentFile())
-                        proc.waitForOrKill(extension.compilerTimeoutMs)
+                        proc.waitForOrKill(ext.compilerTimeoutMs)
                     }
                 }
 
                 project.logger.trace("All jobs submitted to pool, awaiting shutdown...")
                 pool.shutdown()
-                pool.awaitTermination(extension.taskTimeoutMinutes, TimeUnit.MINUTES)
+                pool.awaitTermination(ext.taskTimeoutMinutes, TimeUnit.MINUTES)
                 project.logger.trace("Job pool terminated.")
             }
         }
@@ -186,24 +186,24 @@ class FormsCompilePlugin implements Plugin<Project> {
 
             doLast {
                 //if they didn't explicitly set compiler path, search for it
-                if(extension.compilerPath == null || extension.compilerPath.isEmpty()){
-                    extension.compilerPath = findExecutable(
-                            extension.foldersToSearchForCompiler
+                if(ext.compilerPath == null || ext.compilerPath.isEmpty()){
+                    ext.compilerPath = findExecutable(
+                            ext.foldersToSearchForCompiler
                                     .findAll{it != null && it != "null"}, //exclude any nulls
-                            extension.compilerFileName)
+                            ext.compilerFileName)
                 }
 
-                if(extension.compilerPath == null){
+                if(ext.compilerPath == null){
                     project.logger.error "Unable to find a compiler! Please specify the path explicitly."
                     throw new Exception("No Compiler Found")
                 } else {
-                    project.logger.quiet("Using compiler: '${extension.compilerPath}'")
+                    project.logger.quiet("Using compiler: '${ext.compilerPath}'")
                 }
 
                 //load compile config
                 Properties compileProps = new Properties()
                 try {
-                    extension.compileConfigFile.withInputStream {
+                    ext.compileConfigFile.withInputStream {
                         compileProps.load(it)
                     }
                 } catch (Exception e){
@@ -214,19 +214,19 @@ class FormsCompilePlugin implements Plugin<Project> {
                 // we need to keep separate lists of each file we find by type so
                 // we can appropriately check its completion by looking at the binary file
                 def files = [:]
-                extension.fileTypes.each{
+                ext.fileTypes.each{
                     files[it] = []
                 }
 
                 //collect all compileable files
-                //TODO: folders to search for compilables should be set in extension object
-                def schemaDirs =  project.layout.files { project.buildDir.listFiles() }
+                //TODO: folders to search for compilables should be set in ext object
+                def schemaDirs =  project.layout.files { ext.buildSourceSubdir.listFiles() }
 
                 schemaDirs.filter{it.isDirectory()}.each{
                     it.eachFileRecurse(FileType.FILES) { file ->
                         def filename = file.getAbsolutePath()
 
-                        def fileType = extension.fileTypes.find{ it.sourceFileExtension.equalsIgnoreCase(FilenameUtils.getExtension(filename))}
+                        def fileType = ext.fileTypes.find{ it.sourceFileExtension.equalsIgnoreCase(FilenameUtils.getExtension(filename))}
 
                         if(fileType != null){
                             project.logger.debug("Found file $file, adding to fileType $fileType")
@@ -237,10 +237,10 @@ class FormsCompilePlugin implements Plugin<Project> {
                     }
                 }
 
-                def pool = Executors.newFixedThreadPool(extension.maxCompilerThreads)
+                def pool = Executors.newFixedThreadPool(ext.maxCompilerThreads)
 
                 //get all filetypes by compileOrder
-                def compileSteps = extension.fileTypes.groupBy{it.compileOrder}
+                def compileSteps = ext.fileTypes.groupBy{it.compileOrder}
 
                 //compile
                 compileSteps.keySet().sort().each{ priority ->
@@ -263,11 +263,11 @@ class FormsCompilePlugin implements Plugin<Project> {
                                         password = compileProps."${schema}Pass" ?: System.env."${schema}Pass"
                                     }
 
-                                    def command = fileType.getCompileCommand(extension.compilerPath, modulePath, username, password, sid)
+                                    def command = fileType.getCompileCommand(ext.compilerPath, modulePath, username, password, sid)
                                     project.logger.quiet "compiling $modulePath"
                                     project.logger.debug(command)
                                     def proc = command.execute([], lib.getParentFile())
-                                    proc.waitForOrKill(extension.compilerTimeoutMs)
+                                    proc.waitForOrKill(ext.compilerTimeoutMs)
                                 }
                             }
                         } else {
@@ -278,7 +278,7 @@ class FormsCompilePlugin implements Plugin<Project> {
 
                 project.logger.trace("All jobs submitted to pool, awaiting shutdown...")
                 pool.shutdown()
-                pool.awaitTermination(extension.taskTimeoutMinutes, TimeUnit.MINUTES)
+                pool.awaitTermination(ext.taskTimeoutMinutes, TimeUnit.MINUTES)
                 project.logger.trace("Job pool terminated.")
             }
         }
