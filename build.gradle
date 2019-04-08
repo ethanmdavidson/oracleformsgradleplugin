@@ -7,7 +7,7 @@ plugins {
 }
 
 project.group = 'com.mcwa'
-project.version = '1.6.5'
+project.version = '1.7.0'
 
 def archivaUrl = 'http://subversion:8080/repository/internal'
 def archivaUser = credentials.ArchivaPublishUsername

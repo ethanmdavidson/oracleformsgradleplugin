@@ -2,6 +2,7 @@ package com.mcwa.oracleformsgradleplugin
 
 import groovy.io.FileType
 import org.apache.commons.io.FilenameUtils
+import org.gradle.api.GradleException
 import org.gradle.api.Plugin
 import org.gradle.api.Project
 import org.gradle.api.file.FileCopyDetails
@@ -72,11 +73,12 @@ class FormsCompilePlugin implements Plugin<Project> {
         ext.buildSourceSubdir = ext.buildSourceSubdir ?: new File(project.buildDir, "oracleforms")
         ext.buildOutputSubdir = ext.buildOutputSubdir ?: new File(project.buildDir, "output")
         ext.buildXmlSubdir = ext.buildXmlSubdir ?: new File(project.buildDir, "xml")
+        ext.buildXmlSubdir = ext.buildXmlSubdir ?: new File(project.buildDir, "logs")
 
         project.task('build'){
             group 'Forms Compile (12c)'
             description 'Runs all tasks necessary for a full build'
-            dependsOn 'copySourceForBuild', 'compileForms', 'copyExecutablesToOutput'
+            dependsOn 'copySourceForBuild', 'compileForms', 'collectCompiledFiles'
         }
 
         project.task('generateXml'){
@@ -92,6 +94,7 @@ class FormsCompilePlugin implements Plugin<Project> {
             delete ext.buildSourceSubdir
             delete ext.buildOutputSubdir
             delete ext.buildXmlSubdir
+            delete ext.buildLogSubdir
         }
 
         project.task('copySourceForBuild', type: Copy){
@@ -107,7 +110,7 @@ class FormsCompilePlugin implements Plugin<Project> {
             into ext.buildSourceSubdir
         }
 
-        project.task('copyExecutablesToOutput', type:Copy){
+        project.task('collectCompiledFiles', type:Copy){
             group 'Forms Compile (12c)'
             description 'Copy all compiled files into output directory'
             dependsOn 'compileForms'
@@ -137,6 +140,20 @@ class FormsCompilePlugin implements Plugin<Project> {
                 }
             }
             into ext.buildXmlSubdir
+        }
+
+        project.task('collectLogFiles', type:Copy){
+            group 'Forms Compile (12c)'
+            description 'Copy all compiler log files into output directory'
+            dependsOn 'compileForms'
+            shouldRunAfter 'compileForms'
+
+            from(ext.buildSourceSubdir) {
+                ext.fileTypes.each {
+                    include("**/*.err")
+                }
+            }
+            into ext.buildLogSubdir
         }
 
         project.task('convertFormToXml'){
@@ -251,7 +268,12 @@ class FormsCompilePlugin implements Plugin<Project> {
                             project.logger.lifecycle("Compiling type: ${fileType}")
                             files[fileType].each{ File lib ->
                                 pool.execute {
+                                    def workingDir = lib.getParentFile()
                                     def modulePath = lib.getAbsolutePath()
+                                    def moduleName = FilenameUtils.getBaseName(modulePath)
+                                    //compiler has no stdout or stderr, instead writes to <module>.err
+                                    def compilerLogFile = new File(workingDir, "${moduleName}.err")
+                                    def outputFile = new File(workingDir, "${moduleName}.${fileType.binaryFileExtension}")
                                     def username = null
                                     def password = null
                                     if (fileType.logonRequired){
@@ -266,8 +288,22 @@ class FormsCompilePlugin implements Plugin<Project> {
                                     def command = fileType.getCompileCommand(ext.compilerPath, modulePath, username, password, sid)
                                     project.logger.quiet "compiling $modulePath"
                                     project.logger.debug(command)
-                                    def proc = command.execute([], lib.getParentFile())
+                                    def proc = command.execute([], workingDir)
                                     proc.waitForOrKill(ext.compilerTimeoutMs)
+
+                                    //check that file compiled correctly
+                                    if(!outputFile.exists()) {
+                                        //if compile fails without any compiler log, probably a TNS error
+                                        throw new GradleException("$modulePath failed to compile! Expected output file was: $outputFile")
+                                    } else if(compilerLogFile.exists()){
+                                        //grep log file for 'ORA-', 'FRM-', etc.
+                                        def errorLines = compilerLogFile.text.tokenize('\n').findAll{ line ->
+                                            ext.errorTokens.any{ line.contains(it) }
+                                        }
+                                        if(!errorLines.isEmpty()){
+                                            project.logger.warn("Errors while compiling $modulePath: \n${errorLines.join('\n')}" )
+                                        }
+                                    }
                                 }
                             }
                         } else {
