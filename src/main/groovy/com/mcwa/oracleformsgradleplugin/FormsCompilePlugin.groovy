@@ -286,7 +286,7 @@ class FormsCompilePlugin implements Plugin<Project> {
                                     }
 
                                     def command = fileType.getCompileCommand(ext.compilerPath, modulePath, username, password, sid)
-                                    project.logger.quiet "compiling $modulePath"
+                                    project.logger.quiet "compiling $modulePath as user $username"
                                     project.logger.debug(command)
                                     def proc = command.execute([], workingDir)
                                     proc.waitForOrKill(ext.compilerTimeoutMs)
