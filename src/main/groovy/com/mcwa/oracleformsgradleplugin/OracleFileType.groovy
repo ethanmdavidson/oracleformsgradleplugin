@@ -9,6 +9,7 @@ class OracleFileType {
     Boolean compilationRequired
     Boolean logonRequired
     String moduleType
+    //compileAll should almost always be special https://linuxappsdba.blogspot.com/2009/06/why-compile-forms-with.html
     String compileAll = 'special'
 
     OracleFileType(srcExt, binExt, compOrd, compReq, logonReq, modType){

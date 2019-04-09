@@ -232,6 +232,9 @@ class FormsCompilePlugin implements Plugin<Project> {
                 }
                 def sid = compileProps.sid  ?: System.env.ORACLE_SID
 
+                //Add any folders with compiled files to the FORMS_PATH
+                def pathFolders = [] as Set
+
                 // we need to keep separate lists of each file we find by type so
                 // we can appropriately check its completion by looking at the binary file
                 def files = [:]
@@ -252,11 +255,27 @@ class FormsCompilePlugin implements Plugin<Project> {
                         if(fileType != null){
                             project.logger.debug("Found file $file, adding to fileType $fileType")
                             files[fileType].add(file)
+                            pathFolders += file.getParentFile().getAbsolutePath()
                         } else {
                             project.logger.debug("Not compiling $file because fileType could not be determined.")
                         }
                     }
                 }
+
+
+                def formsPath = pathFolders.join(File.pathSeparator)
+
+                //prepend any existing FORMS_PATH
+                String sysFormsPath = System.env.FORMS_PATH
+                if(sysFormsPath != null && !sysFormsPath.isEmpty()){
+                    if(!sysFormsPath.endsWith(File.pathSeparator)){
+                        sysFormsPath += File.pathSeparator
+                    }
+                    formsPath = sysFormsPath + formsPath
+                }
+
+                project.logger.debug("FORMS_PATH is: $formsPath")
+                def envVars = ["FORMS_PATH=$formsPath"]
 
                 def pool = Executors.newFixedThreadPool(ext.maxCompilerThreads)
 
@@ -292,7 +311,7 @@ class FormsCompilePlugin implements Plugin<Project> {
                                     def command = fileType.getCompileCommand(ext.compilerPath, modulePath, username, password, sid)
                                     project.logger.quiet "compiling $modulePath as user $username"
                                     project.logger.debug(command)
-                                    def proc = command.execute([], workingDir)
+                                    def proc = command.execute(envVars, workingDir)
                                     proc.waitForOrKill(ext.compilerTimeoutMs)
 
                                     //output compiler errors as warnings (because some error codes are just warnings)
@@ -311,6 +330,7 @@ class FormsCompilePlugin implements Plugin<Project> {
                                         throw new GradleException("$modulePath failed to compile! Expected output file was: $outputFile")
                                     }
                                 }
+                                project.logger.debug("File $lib added to compiler pool.")
                             }
                         } else {
                             project.logger.lifecycle("No compile required for type: ${fileType}")
@@ -318,10 +338,10 @@ class FormsCompilePlugin implements Plugin<Project> {
                     }
                 }
 
-                project.logger.trace("All jobs submitted to pool, awaiting shutdown...")
+                project.logger.debug("All jobs submitted to pool, awaiting shutdown...")
                 pool.shutdown()
                 pool.awaitTermination(ext.taskTimeoutMinutes, TimeUnit.MINUTES)
-                project.logger.trace("Job pool terminated.")
+                project.logger.debug("Job pool terminated.")
             }
         }
     }
