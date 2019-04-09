@@ -28,7 +28,9 @@ class OracleFileType {
     String getCompileCommand(String compilerPath, String modulePath, String username, String password, String sid) {
         def command = """$compilerPath module="$modulePath" """
 
-        if(logonRequired){
+        //even if logonRequired=false, we still logon if a username is specified
+        //This is because some modules (e.g. webutil.pll) require a logon, even if that fileType generally doesn't
+        if(logonRequired || username != null){
             command += """ userid=$username/$password@$sid """
         } else {
             command += " logon=no "

@@ -31,13 +31,8 @@ class FormsCompilePlugin implements Plugin<Project> {
         return executable
     }
 
-    static def getSchemaForFilename(String path){
-        //when given a path to a file, this will return the string representing the schema
-        // that file should be compiled with.
-        //first check if the file has a corresponding config file
-        // e.g. cis/forms/wo_assign.fmb config would be cis/forms/wo_assign.cfg
-        //config files should put the schema in the compileSchema key
-        File configFile = new File(FilenameUtils.removeExtension(path) + ".cfg")
+    static String getSchemaFromModuleCfg(String modulePath){
+        File configFile = new File(FilenameUtils.removeExtension(modulePath) + ".cfg")
         if(configFile.exists()){
             Properties properties = new Properties()
             configFile.withInputStream {
@@ -46,6 +41,19 @@ class FormsCompilePlugin implements Plugin<Project> {
             if(properties.compileSchema != null){
                 return properties.compileSchema
             }
+        }
+        return null
+    }
+
+    static def getSchemaForFilename(String path){
+        //when given a path to a file, this will return the string representing the schema
+        // that file should be compiled with.
+        //first check if the file has a corresponding config file
+        // e.g. cis/forms/wo_assign.fmb config would be cis/forms/wo_assign.cfg
+        //config files should put the schema in the compileSchema key
+        def schemaFromModule = getSchemaFromModuleCfg(path)
+        if(schemaFromModule != null){
+            return schemaFromModule
         }
 
         //if no config specified for this file, check the root config
@@ -306,6 +314,13 @@ class FormsCompilePlugin implements Plugin<Project> {
                                         }
                                         username = compileProps."${schema}User" ?: System.env."${schema}User"
                                         password = compileProps."${schema}Pass" ?: System.env."${schema}Pass"
+                                    } else {
+                                        //even if logonRequired=false, logon if a <module>.cfg file specifies the schema
+                                        def schemaFromModule = getSchemaFromModuleCfg(modulePath)
+                                        if(schemaFromModule != null){
+                                            username = compileProps."${schemaFromModule}User" ?: System.env."${schemaFromModule}User"
+                                            password = compileProps."${schemaFromModule}Pass" ?: System.env."${schemaFromModule}Pass"
+                                        }
                                     }
 
                                     def command = fileType.getCompileCommand(ext.compilerPath, modulePath, username, password, sid)
