@@ -20,6 +20,12 @@ class FormsCompilePluginExtension {
             new OracleFileType("fmb", "fmx", 2, true, true, 'form'),
             new OracleFileType('rdf', 'rdf', 2, false, false, 'report') ]
 
+    //additional files which aren't compiled, but are used by the forms and need to be deployed with them
+    //e.g. images which are referenced by the form
+    //These should be specified in the ant glob pattern used by gradle (e.g. **/*.tif for all tif files)
+    //https://docs.gradle.org/current/userguide/working_with_files.html
+    List<String> additionalFiles = []
+
     def compilerTimeoutMs = 60*1000	//max time to wait for compile process to finish
 
     File compileConfigFile = new File("compile.properties")

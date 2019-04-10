@@ -115,6 +115,9 @@ class FormsCompilePlugin implements Plugin<Project> {
                 ext.fileTypes.each {
                     include("**/*.${it.sourceFileExtension}")
                 }
+                ext.additionalFiles.each {
+                    include(it)
+                }
             }
             into ext.buildSourceSubdir
         }
@@ -129,6 +132,9 @@ class FormsCompilePlugin implements Plugin<Project> {
             from(ext.buildSourceSubdir) {
                 ext.fileTypes.each {
                     include("**/*.${it.binaryFileExtension}")
+                }
+                ext.additionalFiles.each {
+                    include(it)
                 }
             }
             into ext.buildOutputSubdir
