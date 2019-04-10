@@ -24,7 +24,7 @@ class FormsCompilePluginExtension {
     //e.g. images which are referenced by the form
     //These should be specified in the ant glob pattern used by gradle (e.g. **/*.tif for all tif files)
     //https://docs.gradle.org/current/userguide/working_with_files.html
-    List<String> additionalFiles = []
+    List<String> additionalFiles = ["**/*.tif"]
 
     def compilerTimeoutMs = 60*1000	//max time to wait for compile process to finish
 
