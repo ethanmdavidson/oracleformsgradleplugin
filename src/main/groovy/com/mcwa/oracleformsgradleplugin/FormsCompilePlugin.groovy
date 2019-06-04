@@ -311,8 +311,8 @@ class FormsCompilePlugin implements Plugin<Project> {
                                 def outputFile = new File(workingDir, "${moduleName}.${fileType.binaryFileExtension}")
 
                                 //if executable is up-to-date, skip compilation
-                                if(outputFile.lastModified() > module.lastModified()){
-                                    project.logger.debug("${modulePath} is up to date, skipping.")
+                                if(outputFile.exists() && outputFile.lastModified() > module.lastModified()){
+                                    project.logger.quiet("${modulePath} is up to date, skipping.")
                                     return
                                 }
 
@@ -350,6 +350,7 @@ class FormsCompilePlugin implements Plugin<Project> {
                                         project.logger.warn("Errors while compiling $modulePath: \n${errorLines.join('\n')}" )
                                     }
                                 }
+
                                 //check that file compiled correctly
                                 if(!outputFile.exists() || outputFile.lastModified() < module.lastModified()) {
                                     //if compile fails without any compiler log, probably a TNS error
