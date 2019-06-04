@@ -121,6 +121,7 @@ class FormsCompilePlugin implements Plugin<Project> {
             }
             into ext.buildSourceSubdir
 
+            //this code is to preserve the timestamps (https://github.com/gradle/gradle/issues/1252)
             List<FileCopyDetails> copyDetails = []
             eachFile { FileCopyDetails fcd -> copyDetails << fcd }
             doLast {
