@@ -120,6 +120,15 @@ class FormsCompilePlugin implements Plugin<Project> {
                 }
             }
             into ext.buildSourceSubdir
+
+            List<FileCopyDetails> copyDetails = []
+            eachFile { FileCopyDetails fcd -> copyDetails << fcd }
+            doLast {
+                copyDetails.each { FileCopyDetails details ->
+                    def target = new File(ext.buildSourceSubdir, details.path)
+                    if(target.exists()) { target.setLastModified(details.lastModified) }
+                }
+            }
         }
 
         project.task('collectCompiledFiles', type:Copy){
@@ -293,13 +302,20 @@ class FormsCompilePlugin implements Plugin<Project> {
                     compileSteps[priority].each { fileType ->
                         if(fileType.compilationRequired) {
                             project.logger.lifecycle("Compiling type: ${fileType}")
-                            files[fileType].each{ File lib ->
-                                def workingDir = lib.getParentFile()
-                                def modulePath = lib.getAbsolutePath()
+                            files[fileType].each{ File module ->
+                                def workingDir = module.getParentFile()
+                                def modulePath = module.getAbsolutePath()
                                 def moduleName = FilenameUtils.getBaseName(modulePath)
                                 //compiler has no stdout or stderr, instead writes to <module>.err
                                 def compilerLogFile = new File(workingDir, "${moduleName}.err")
                                 def outputFile = new File(workingDir, "${moduleName}.${fileType.binaryFileExtension}")
+
+                                //if executable is up-to-date, skip compilation
+                                if(outputFile.lastModified() > module.lastModified()){
+                                    project.logger.debug("${modulePath} is up to date, skipping.")
+                                    return
+                                }
+
                                 def username = null
                                 def password = null
                                 if (fileType.logonRequired){
@@ -335,7 +351,7 @@ class FormsCompilePlugin implements Plugin<Project> {
                                     }
                                 }
                                 //check that file compiled correctly
-                                if(!outputFile.exists()) {
+                                if(!outputFile.exists() || outputFile.lastModified() < module.lastModified()) {
                                     //if compile fails without any compiler log, probably a TNS error
                                     throw new GradleException("$modulePath failed to compile! Expected output file was: $outputFile")
                                 }
