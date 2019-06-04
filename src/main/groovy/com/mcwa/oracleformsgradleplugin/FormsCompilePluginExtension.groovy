@@ -26,7 +26,7 @@ class FormsCompilePluginExtension {
     //https://docs.gradle.org/current/userguide/working_with_files.html
     List<String> additionalFiles = ["**/*.tif"]
 
-    def compilerTimeoutMs = 60*1000	//max time to wait for compile process to finish
+    def compilerTimeoutMs = 5*60*1000	//max time to wait for compile process to finish
 
     File compileConfigFile = new File("compile.properties")
 
@@ -39,5 +39,5 @@ class FormsCompilePluginExtension {
     File buildLogSubdir = null
 
     //tokens to grep for in compiler logs
-    List<String> errorTokens = ["FRM-", "ORA-", "TNS-", "PL/SQL ERROR"]
+    List<String> errorTokens = ["FRM-", "ORA-", "TNS-", "PL/SQL ERROR", "PDE-"]
 }
