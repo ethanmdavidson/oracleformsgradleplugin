@@ -12,7 +12,7 @@ To add it to a project, simply apply the plugin in typical gradle style:
 
 ```groovy
 plugins {
-    id 'com.mcwa.oracleforms' version '0.1'
+    id 'com.mcwa.oracleforms' version '1.8.2'
 }
 ```
 
