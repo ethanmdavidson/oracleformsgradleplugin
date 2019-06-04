@@ -194,23 +194,15 @@ class FormsCompilePlugin implements Plugin<Project> {
                     project.logger.quiet("Using converter: '${ext.xmlConverterPath}'")
                 }
 
-                def pool = Executors.newFixedThreadPool(ext.maxCompilerThreads)
-
                 project.fileTree(ext.buildSourceSubdir).matching{include "**/*.fmb"}.each { File f ->
-                    pool.execute {
-                        def modulePath = f.getAbsolutePath()
-                        def command = """${ext.xmlConverterPath} "$modulePath" OVERWRITE=YES"""
-                        project.logger.quiet "converting $modulePath to xml"
-                        project.logger.debug(command)
-                        def proc = command.execute([], f.getParentFile())
-                        proc.waitForOrKill(ext.compilerTimeoutMs)
-                    }
+                    def modulePath = f.getAbsolutePath()
+                    def command = """${ext.xmlConverterPath} "$modulePath" OVERWRITE=YES"""
+                    project.logger.quiet "converting $modulePath to xml"
+                    project.logger.debug(command)
+                    def proc = command.execute([], f.getParentFile())
+                    proc.waitForOrKill(ext.compilerTimeoutMs)
                 }
-
-                project.logger.trace("All jobs submitted to pool, awaiting shutdown...")
-                pool.shutdown()
-                pool.awaitTermination(ext.taskTimeoutMinutes, TimeUnit.MINUTES)
-                project.logger.trace("Job pool terminated.")
+                project.logger.debug("All modules converted.")
             }
         }
 
@@ -291,8 +283,6 @@ class FormsCompilePlugin implements Plugin<Project> {
                 project.logger.debug("FORMS_PATH is: $formsPath")
                 def envVars = ["FORMS_PATH=$formsPath"]
 
-                def pool = Executors.newFixedThreadPool(ext.maxCompilerThreads)
-
                 //get all filetypes by compileOrder
                 def compileSteps = ext.fileTypes.groupBy{it.compileOrder}
 
@@ -304,65 +294,58 @@ class FormsCompilePlugin implements Plugin<Project> {
                         if(fileType.compilationRequired) {
                             project.logger.lifecycle("Compiling type: ${fileType}")
                             files[fileType].each{ File lib ->
-                                pool.execute {
-                                    def workingDir = lib.getParentFile()
-                                    def modulePath = lib.getAbsolutePath()
-                                    def moduleName = FilenameUtils.getBaseName(modulePath)
-                                    //compiler has no stdout or stderr, instead writes to <module>.err
-                                    def compilerLogFile = new File(workingDir, "${moduleName}.err")
-                                    def outputFile = new File(workingDir, "${moduleName}.${fileType.binaryFileExtension}")
-                                    def username = null
-                                    def password = null
-                                    if (fileType.logonRequired){
-                                        def schema = getSchemaForFilename(modulePath).toLowerCase()
-                                        if(schema == null){
-                                            project.logger.warn "no schema found for $modulePath"
-                                        }
-                                        username = compileProps."${schema}User" ?: System.env."${schema}User"
-                                        password = compileProps."${schema}Pass" ?: System.env."${schema}Pass"
-                                    } else {
-                                        //even if logonRequired=false, logon if a <module>.cfg file specifies the schema
-                                        def schemaFromModule = getSchemaFromModuleCfg(modulePath)
-                                        if(schemaFromModule != null){
-                                            username = compileProps."${schemaFromModule}User" ?: System.env."${schemaFromModule}User"
-                                            password = compileProps."${schemaFromModule}Pass" ?: System.env."${schemaFromModule}Pass"
-                                        }
+                                def workingDir = lib.getParentFile()
+                                def modulePath = lib.getAbsolutePath()
+                                def moduleName = FilenameUtils.getBaseName(modulePath)
+                                //compiler has no stdout or stderr, instead writes to <module>.err
+                                def compilerLogFile = new File(workingDir, "${moduleName}.err")
+                                def outputFile = new File(workingDir, "${moduleName}.${fileType.binaryFileExtension}")
+                                def username = null
+                                def password = null
+                                if (fileType.logonRequired){
+                                    def schema = getSchemaForFilename(modulePath).toLowerCase()
+                                    if(schema == null){
+                                        project.logger.warn "no schema found for $modulePath"
                                     }
-
-                                    def command = fileType.getCompileCommand(ext.compilerPath, modulePath, username, password, sid)
-                                    project.logger.quiet "compiling $modulePath as user $username"
-                                    project.logger.debug(command)
-                                    def proc = command.execute(envVars, workingDir)
-                                    proc.waitForOrKill(ext.compilerTimeoutMs)
-
-                                    //output compiler errors as warnings (because some error codes are just warnings)
-                                    if(compilerLogFile.exists()){
-                                        //grep log file for 'ORA-', 'FRM-', etc.
-                                        def errorLines = compilerLogFile.text.tokenize('\n').findAll{ line ->
-                                            ext.errorTokens.any{ line.contains(it) }
-                                        }
-                                        if(!errorLines.isEmpty()){
-                                            project.logger.warn("Errors while compiling $modulePath: \n${errorLines.join('\n')}" )
-                                        }
-                                    }
-                                    //check that file compiled correctly
-                                    if(!outputFile.exists()) {
-                                        //if compile fails without any compiler log, probably a TNS error
-                                        throw new GradleException("$modulePath failed to compile! Expected output file was: $outputFile")
+                                    username = compileProps."${schema}User" ?: System.env."${schema}User"
+                                    password = compileProps."${schema}Pass" ?: System.env."${schema}Pass"
+                                } else {
+                                    //even if logonRequired=false, logon if a <module>.cfg file specifies the schema
+                                    def schemaFromModule = getSchemaFromModuleCfg(modulePath)
+                                    if(schemaFromModule != null){
+                                        username = compileProps."${schemaFromModule}User" ?: System.env."${schemaFromModule}User"
+                                        password = compileProps."${schemaFromModule}Pass" ?: System.env."${schemaFromModule}Pass"
                                     }
                                 }
-                                project.logger.debug("File $lib added to compiler pool.")
+
+                                def command = fileType.getCompileCommand(ext.compilerPath, modulePath, username, password, sid)
+                                project.logger.quiet "compiling $modulePath as user $username"
+                                project.logger.debug(command)
+                                def proc = command.execute(envVars, workingDir)
+                                proc.waitForOrKill(ext.compilerTimeoutMs)
+
+                                //output compiler errors as warnings (because some error codes are just warnings)
+                                if(compilerLogFile.exists()){
+                                    //grep log file for 'ORA-', 'FRM-', etc.
+                                    def errorLines = compilerLogFile.text.tokenize('\n').findAll{ line ->
+                                        ext.errorTokens.any{ line.contains(it) }
+                                    }
+                                    if(!errorLines.isEmpty()){
+                                        project.logger.warn("Errors while compiling $modulePath: \n${errorLines.join('\n')}" )
+                                    }
+                                }
+                                //check that file compiled correctly
+                                if(!outputFile.exists()) {
+                                    //if compile fails without any compiler log, probably a TNS error
+                                    throw new GradleException("$modulePath failed to compile! Expected output file was: $outputFile")
+                                }
                             }
                         } else {
                             project.logger.lifecycle("No compile required for type: ${fileType}")
                         }
                     }
                 }
-
-                project.logger.debug("All jobs submitted to pool, awaiting shutdown...")
-                pool.shutdown()
-                pool.awaitTermination(ext.taskTimeoutMinutes, TimeUnit.MINUTES)
-                project.logger.debug("Job pool terminated.")
+                project.logger.debug("All modules compiled.")
             }
         }
     }
