@@ -301,6 +301,9 @@ class FormsCompilePlugin implements Plugin<Project> {
                 }
                 project.logger.debug("FORMS_PATH is: $formsPath")
                 envVars.add("FORMS_PATH=$formsPath")
+                //6i uses a different variable https://gph.is/1fFAj2t
+                //it doesn't hurt the compiler to have both set, but it sure hurts me
+                envVars.add("FORMS60_PATH=$formsPath")
 
                 //pass through TNS_ADMIN, if it exists
                 String tnsAdminPath = System.env.TNS_ADMIN
