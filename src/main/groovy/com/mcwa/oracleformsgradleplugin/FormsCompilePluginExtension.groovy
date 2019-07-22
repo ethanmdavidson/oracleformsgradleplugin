@@ -3,7 +3,7 @@ package com.mcwa.oracleformsgradleplugin
 class FormsCompilePluginExtension {
     List<String> foldersToSearchForCompiler =
             ["$System.env.ORACLE_HOME", //first check oracle path
-             "C:/oracle"] //finally check a common oracle installation location
+             "C:/oracle", "C:/orant"] //finally check some common oracle installation locations
 
     String compilerFileName = "frmcmp.exe"	//filename to search for
 
