@@ -13,7 +13,14 @@ import java.util.concurrent.Executors
 import java.util.concurrent.TimeUnit
 
 class FormsCompilePlugin implements Plugin<Project> {
-    private static final GROUP_NAME = "Oracle Forms"
+    static final String GROUP_NAME = "Oracle Forms"
+
+    static final String compileFormsTask = 'compileForms'
+    static final String convertFormsToXmlTask = 'convertFormsToXml'
+    static final String copySourceForBuildTask = 'copySourceForBuild'
+    static final String collectCompiledFilesTask = 'collectCompiledFiles'
+    static final String collectLogFilesTask = 'collectLogFiles'
+    static final String collectXmlFilesTask = 'collectXmlFiles'
 
     static def findExecutable(foldersToCheck, executableFilename){
         def executable = null
@@ -87,13 +94,13 @@ class FormsCompilePlugin implements Plugin<Project> {
         project.task('build'){
             group GROUP_NAME
             description 'Runs all tasks necessary for a full build'
-            dependsOn 'copySourceForBuild', 'compileForms', 'collectCompiledFiles', 'collectLogFiles'
+            dependsOn copySourceForBuildTask, compileFormsTask, collectCompiledFilesTask, collectLogFilesTask
         }
 
         project.task('generateXml'){
             group GROUP_NAME
             description 'Converts .fmb files to .xml'
-            dependsOn 'copySourceForBuild', 'convertFormToXml', 'collectXmlFiles'
+            dependsOn copySourceForBuildTask, convertFormsToXmlTask, collectXmlFilesTask
         }
 
         project.task('clean', type: Delete){
@@ -106,7 +113,7 @@ class FormsCompilePlugin implements Plugin<Project> {
             delete ext.buildLogSubdir
         }
 
-        project.task('copySourceForBuild', type: Copy){
+        project.task(copySourceForBuildTask, type: Copy){
             group GROUP_NAME
             description 'Copy all source files into build directory'
             caseSensitive false
@@ -133,11 +140,11 @@ class FormsCompilePlugin implements Plugin<Project> {
             }
         }
 
-        project.task('collectCompiledFiles', type:Copy){
+        project.task(collectCompiledFilesTask, type:Copy){
             group GROUP_NAME
             description 'Copy all compiled files into output directory'
-            dependsOn 'compileForms'
-            shouldRunAfter 'compileForms'
+            dependsOn compileFormsTask
+            shouldRunAfter compileFormsTask
             caseSensitive false
 
             from(ext.buildSourceSubdir) {
@@ -155,11 +162,11 @@ class FormsCompilePlugin implements Plugin<Project> {
             }
         }
 
-        project.task('collectXmlFiles', type:Copy){
+        project.task(collectXmlFilesTask, type:Copy){
             group GROUP_NAME
             description 'Copy all xml files into xml directory'
-            dependsOn 'convertFormToXml'
-            shouldRunAfter 'convertFormToXml'
+            dependsOn convertFormsToXmlTask
+            shouldRunAfter convertFormsToXmlTask
             caseSensitive false
 
             from(ext.buildSourceSubdir) {
@@ -170,11 +177,11 @@ class FormsCompilePlugin implements Plugin<Project> {
             into ext.buildXmlSubdir
         }
 
-        project.task('collectLogFiles', type:Copy){
+        project.task(collectLogFilesTask, type:Copy){
             group GROUP_NAME
             description 'Copy all compiler log files into output directory'
-            dependsOn 'compileForms'
-            shouldRunAfter 'compileForms'
+            dependsOn compileFormsTask
+            shouldRunAfter compileFormsTask
             caseSensitive false
 
             from(ext.buildSourceSubdir) {
@@ -185,10 +192,10 @@ class FormsCompilePlugin implements Plugin<Project> {
             into ext.buildLogSubdir
         }
 
-        project.task('convertFormToXml'){
+        project.task(convertFormsToXmlTask){
             group GROUP_NAME
             description 'Converts all files to xml format'
-            dependsOn 'copySourceForBuild'
+            dependsOn copySourceForBuildTask
 
             doLast {
                 //if they didn't explicitly set compiler path, search for it
@@ -217,10 +224,10 @@ class FormsCompilePlugin implements Plugin<Project> {
             }
         }
 
-        project.task('compileForms'){
+        project.task(compileFormsTask){
             group GROUP_NAME
             description 'Compiles all Oracle Forms files in the build directory'
-            dependsOn 'copySourceForBuild'
+            dependsOn copySourceForBuildTask
 
             doLast {
                 //if they didn't explicitly set compiler path, search for it
