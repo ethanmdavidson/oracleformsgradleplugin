@@ -325,9 +325,9 @@ class FormsCompilePlugin implements Plugin<Project> {
                             files[fileType].each{ File module ->
                                 def workingDir = module.getParentFile()
                                 def modulePath = module.getAbsolutePath()
-                                def moduleName = FilenameUtils.getName(modulePath)
+                                def moduleName = FilenameUtils.getBaseName(modulePath)
                                 //compiler has no stdout or stderr, instead writes to <module>.err
-                                def compilerLogFile = new File(workingDir, "${moduleName}.err")
+                                def compilerLogFile = new File(workingDir, "${module.getName()}.err")
                                 def outputFile = new File(workingDir, "${moduleName}.${fileType.binaryFileExtension}")
 
                                 //if executable is up-to-date, skip compilation
