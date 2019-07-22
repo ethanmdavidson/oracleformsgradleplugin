@@ -13,6 +13,7 @@ import java.util.concurrent.Executors
 import java.util.concurrent.TimeUnit
 
 class FormsCompilePlugin implements Plugin<Project> {
+    private static final GROUP_NAME = "Oracle Forms"
 
     static def findExecutable(foldersToCheck, executableFilename){
         def executable = null
@@ -84,19 +85,19 @@ class FormsCompilePlugin implements Plugin<Project> {
         ext.buildLogSubdir = ext.buildLogSubdir ?: new File(project.buildDir, "logs")
 
         project.task('build'){
-            group 'Forms Compile (12c)'
+            group GROUP_NAME
             description 'Runs all tasks necessary for a full build'
             dependsOn 'copySourceForBuild', 'compileForms', 'collectCompiledFiles', 'collectLogFiles'
         }
 
         project.task('generateXml'){
-            group 'Forms Compile (12c)'
+            group GROUP_NAME
             description 'Converts .fmb files to .xml'
             dependsOn 'copySourceForBuild', 'convertFormToXml', 'collectXmlFiles'
         }
 
         project.task('clean', type: Delete){
-            group 'Forms Compile (12c)'
+            group GROUP_NAME
             description 'Cleans up the project'
 
             delete ext.buildSourceSubdir
@@ -106,7 +107,7 @@ class FormsCompilePlugin implements Plugin<Project> {
         }
 
         project.task('copySourceForBuild', type: Copy){
-            group 'Forms Compile (12c)'
+            group GROUP_NAME
             description 'Copy all source files into build directory'
             caseSensitive false
 
@@ -133,7 +134,7 @@ class FormsCompilePlugin implements Plugin<Project> {
         }
 
         project.task('collectCompiledFiles', type:Copy){
-            group 'Forms Compile (12c)'
+            group GROUP_NAME
             description 'Copy all compiled files into output directory'
             dependsOn 'compileForms'
             shouldRunAfter 'compileForms'
@@ -155,7 +156,7 @@ class FormsCompilePlugin implements Plugin<Project> {
         }
 
         project.task('collectXmlFiles', type:Copy){
-            group 'Forms Compile (12c)'
+            group GROUP_NAME
             description 'Copy all xml files into xml directory'
             dependsOn 'convertFormToXml'
             shouldRunAfter 'convertFormToXml'
@@ -170,7 +171,7 @@ class FormsCompilePlugin implements Plugin<Project> {
         }
 
         project.task('collectLogFiles', type:Copy){
-            group 'Forms Compile (12c)'
+            group GROUP_NAME
             description 'Copy all compiler log files into output directory'
             dependsOn 'compileForms'
             shouldRunAfter 'compileForms'
@@ -185,7 +186,7 @@ class FormsCompilePlugin implements Plugin<Project> {
         }
 
         project.task('convertFormToXml'){
-            group 'Forms Compile (12c)'
+            group GROUP_NAME
             description 'Converts all files to xml format'
             dependsOn 'copySourceForBuild'
 
@@ -217,7 +218,7 @@ class FormsCompilePlugin implements Plugin<Project> {
         }
 
         project.task('compileForms'){
-            group 'Forms Compile (12c)'
+            group GROUP_NAME
             description 'Compiles all Oracle Forms files in the build directory'
             dependsOn 'copySourceForBuild'
 
