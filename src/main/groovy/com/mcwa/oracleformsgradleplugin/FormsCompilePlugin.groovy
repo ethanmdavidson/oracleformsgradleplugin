@@ -325,7 +325,7 @@ class FormsCompilePlugin implements Plugin<Project> {
                             files[fileType].each{ File module ->
                                 def workingDir = module.getParentFile()
                                 def modulePath = module.getAbsolutePath()
-                                def moduleName = FilenameUtils.getBaseName(modulePath)
+                                def moduleName = FilenameUtils.getName(modulePath)
                                 //compiler has no stdout or stderr, instead writes to <module>.err
                                 def compilerLogFile = new File(workingDir, "${moduleName}.err")
                                 def outputFile = new File(workingDir, "${moduleName}.${fileType.binaryFileExtension}")
@@ -367,6 +367,7 @@ class FormsCompilePlugin implements Plugin<Project> {
                                         ext.errorTokens.any{ line.contains(it) }
                                     }
                                     if(!errorLines.isEmpty()){
+                                        project.logger.debug("Error file is: ${compilerLogFile.getAbsolutePath()}")
                                         project.logger.warn("Errors while compiling $modulePath: \n${errorLines.join('\n')}" )
                                     }
                                 }
