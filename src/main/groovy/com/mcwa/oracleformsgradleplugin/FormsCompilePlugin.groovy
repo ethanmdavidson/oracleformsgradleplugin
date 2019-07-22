@@ -286,7 +286,9 @@ class FormsCompilePlugin implements Plugin<Project> {
                     }
                 }
 
-                def formsPath = pathFolders.join(File.pathSeparator)
+                def compilerPath = pathFolders.join(File.pathSeparator)
+                def formsPath = compilerPath
+                def forms60Path = compilerPath
 
                 //set up environment variables for compiler
                 def envVars = []
@@ -301,9 +303,19 @@ class FormsCompilePlugin implements Plugin<Project> {
                 }
                 project.logger.debug("FORMS_PATH is: $formsPath")
                 envVars.add("FORMS_PATH=$formsPath")
+
                 //6i uses a different variable https://gph.is/1fFAj2t
                 //it doesn't hurt the compiler to have both set, but it sure hurts me
-                envVars.add("FORMS60_PATH=$formsPath")
+                //this should probably be refactored, because other versions probably also use different vars
+                String sysForms60Path = System.env.FORMS60_PATH
+                if(sysForms60Path != null && !sysForms60Path.isEmpty()){
+                    if(!sysForms60Path.endsWith(File.pathSeparator)){
+                        sysForms60Path += File.pathSeparator
+                    }
+                    forms60Path = sysForms60Path + forms60Path
+                }
+                project.logger.debug("FORMS60_PATH is: $forms60Path")
+                envVars.add("FORMS60_PATH=$forms60Path")
 
                 //pass through TNS_ADMIN, if it exists
                 String tnsAdminPath = System.env.TNS_ADMIN
