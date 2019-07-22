@@ -278,8 +278,10 @@ class FormsCompilePlugin implements Plugin<Project> {
                     }
                 }
 
-
                 def formsPath = pathFolders.join(File.pathSeparator)
+
+                //set up environment variables for compiler
+                def envVars = []
 
                 //prepend any existing FORMS_PATH
                 String sysFormsPath = System.env.FORMS_PATH
@@ -289,9 +291,15 @@ class FormsCompilePlugin implements Plugin<Project> {
                     }
                     formsPath = sysFormsPath + formsPath
                 }
-
                 project.logger.debug("FORMS_PATH is: $formsPath")
-                def envVars = ["FORMS_PATH=$formsPath"]
+                envVars.add("FORMS_PATH=$formsPath")
+
+                //pass through TNS_ADMIN, if it exists
+                String tnsAdminPath = System.env.TNS_ADMIN
+                project.logger.debug("TNS_ADMIN is: $tnsAdminPath")
+                if (!tnsAdminPath?.isEmpty()){
+                    envVars.add("TNS_ADMIN=$tnsAdminPath")
+                }
 
                 //get all filetypes by compileOrder
                 def compileSteps = ext.fileTypes.groupBy{it.compileOrder}
