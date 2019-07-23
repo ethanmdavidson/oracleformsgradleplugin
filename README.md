@@ -12,11 +12,11 @@ To add it to a project, simply apply the plugin in typical gradle style:
 
 ```groovy
 plugins {
-    id 'com.mcwa.oracleforms' version '1.8.2'
+    id 'com.mcwa.oracleforms' version '1.9.1'
 }
 ```
 
-Then run the 
+Then run the build task. 
 
 ## Restrictions
 
@@ -31,3 +31,9 @@ compiles the following filetypes:
 
 Source files are expected to be in `/src/main/`, and compiled files will 
 end up in `/build/output/`.
+
+Support for 6i (and possibly other versions) is being added in version 2.0,
+which is mostly working except for a strange issue where menus (.mmb) with 
+attached libraries (.pll) cannot be compiled because the 6i compiler ignores
+the FORMS60_PATH environment variable. It should work if the .pll and .mmb 
+in the same directory.
