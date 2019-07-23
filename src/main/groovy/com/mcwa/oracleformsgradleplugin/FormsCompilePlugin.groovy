@@ -291,7 +291,10 @@ class FormsCompilePlugin implements Plugin<Project> {
                 def forms60Path = compilerPath
 
                 //set up environment variables for compiler
-                def envVars = []
+                def envMap = [:] << System.getenv()
+                envMap.remove("FORMS_PATH")
+                envMap.remove("FORMS60_PATH")
+                def envVars = envMap.collect { k, v -> "$k=$v" }
 
                 //prepend any existing FORMS_PATH
                 String sysFormsPath = System.env.FORMS_PATH
@@ -316,13 +319,6 @@ class FormsCompilePlugin implements Plugin<Project> {
                 }
                 project.logger.debug("FORMS60_PATH is: $forms60Path")
                 envVars.add("FORMS60_PATH=$forms60Path")
-
-                //pass through TNS_ADMIN, if it exists
-                String tnsAdminPath = System.env.TNS_ADMIN
-                project.logger.debug("TNS_ADMIN is: $tnsAdminPath")
-                if (!tnsAdminPath?.isEmpty()){
-                    envVars.add("TNS_ADMIN=$tnsAdminPath")
-                }
 
                 //get all filetypes by compileOrder
                 def compileSteps = ext.fileTypes.groupBy{it.compileOrder}
