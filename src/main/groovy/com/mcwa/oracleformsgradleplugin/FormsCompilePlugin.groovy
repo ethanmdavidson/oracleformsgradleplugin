@@ -118,24 +118,28 @@ class FormsCompilePlugin implements Plugin<Project> {
             description 'Copy all source files into build directory'
             caseSensitive false
 
-            from(new File(project.projectDir, "/src/main/").listFiles()) {
-                include "**/*.cfg"
-                ext.fileTypes.each {
-                    include("**/*.${it.sourceFileExtension}")
+            project.gradle.projectsEvaluated {
+                from(new File(project.projectDir, "/src/main/").listFiles()) {
+                    include "**/*.cfg"
+                    ext.fileTypes.each {
+                        include("**/*.${it.sourceFileExtension}")
+                    }
+                    ext.additionalFiles.each {
+                        include(it)
+                    }
                 }
-                ext.additionalFiles.each {
-                    include(it)
-                }
-            }
-            into ext.buildSourceSubdir
+                into ext.buildSourceSubdir
 
-            //this code is to preserve the timestamps (https://github.com/gradle/gradle/issues/1252)
-            List<FileCopyDetails> copyDetails = []
-            eachFile { FileCopyDetails fcd -> copyDetails << fcd }
-            doLast {
-                copyDetails.each { FileCopyDetails details ->
-                    def target = new File(ext.buildSourceSubdir, details.path)
-                    if(target.exists()) { target.setLastModified(details.lastModified) }
+                //this code is to preserve the timestamps (https://github.com/gradle/gradle/issues/1252)
+                List<FileCopyDetails> copyDetails = []
+                eachFile { FileCopyDetails fcd -> copyDetails << fcd }
+                doLast {
+                    copyDetails.each { FileCopyDetails details ->
+                        def target = new File(ext.buildSourceSubdir, details.path)
+                        if (target.exists()) {
+                            target.setLastModified(details.lastModified)
+                        }
+                    }
                 }
             }
         }
@@ -147,18 +151,20 @@ class FormsCompilePlugin implements Plugin<Project> {
             shouldRunAfter compileFormsTask
             caseSensitive false
 
-            from(ext.buildSourceSubdir) {
-                ext.fileTypes.each {
-                    include("**/*.${it.binaryFileExtension}")
+            project.gradle.projectsEvaluated {
+                from(ext.buildSourceSubdir) {
+                    ext.fileTypes.each {
+                        include("**/*.${it.binaryFileExtension}")
+                    }
+                    ext.additionalFiles.each {
+                        include(it)
+                    }
                 }
-                ext.additionalFiles.each {
-                    include(it)
-                }
-            }
-            into ext.buildOutputSubdir
+                into ext.buildOutputSubdir
 
-            eachFile { FileCopyDetails fcd ->
-                fcd.path = fcd.path.replaceAll("(?i)/forms/", "/exe/")
+                eachFile { FileCopyDetails fcd ->
+                    fcd.path = fcd.path.replaceAll("(?i)/forms/", "/exe/")
+                }
             }
         }
 
@@ -169,12 +175,14 @@ class FormsCompilePlugin implements Plugin<Project> {
             shouldRunAfter convertFormsToXmlTask
             caseSensitive false
 
-            from(ext.buildSourceSubdir) {
-                ext.fileTypes.each {
-                    include("**/*.xml")
+            project.gradle.projectsEvaluated {
+                from(ext.buildSourceSubdir) {
+                    ext.fileTypes.each {
+                        include("**/*.xml")
+                    }
                 }
+                into ext.buildXmlSubdir
             }
-            into ext.buildXmlSubdir
         }
 
         project.task(collectLogFilesTask, type:Copy){
@@ -184,12 +192,14 @@ class FormsCompilePlugin implements Plugin<Project> {
             shouldRunAfter compileFormsTask
             caseSensitive false
 
-            from(ext.buildSourceSubdir) {
-                ext.fileTypes.each {
-                    include("**/*.err")
+            project.gradle.projectsEvaluated {
+                from(ext.buildSourceSubdir) {
+                    ext.fileTypes.each {
+                        include("**/*.err")
+                    }
                 }
+                into ext.buildLogSubdir
             }
-            into ext.buildLogSubdir
         }
 
         project.task(convertFormsToXmlTask){
